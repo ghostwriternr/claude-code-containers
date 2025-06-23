@@ -1,5 +1,5 @@
 import { logWithContext } from "../log";
-import { handleInstallationEvent, handleInstallationRepositoriesEvent, handleIssuesEvent, handleIssuesEventEnhanced } from "./github_webhooks";
+import { handleInstallationEvent, handleInstallationRepositoriesEvent, handleIssuesEvent } from "./github_webhooks";
 
 // Route webhook events to specific handlers
 async function routeWebhookEvent(event: string, data: any, configDO: any, env: any, request: Request): Promise<Response> {
@@ -17,8 +17,7 @@ async function routeWebhookEvent(event: string, data: any, configDO: any, env: a
       return handleInstallationRepositoriesEvent(data, configDO);
 
     case 'issues':
-      // Use enhanced handler for better Worker/Container separation
-      return handleIssuesEventEnhanced(request, env, configDO);
+      return handleIssuesEvent(data, env, configDO);
 
     default:
       logWithContext('EVENT_ROUTER', 'Unhandled webhook event', {
