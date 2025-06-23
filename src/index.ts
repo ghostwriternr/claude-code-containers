@@ -13,6 +13,22 @@ import {
 } from './handlers/setup/github';
 import { handleGitHubWebhook } from './handlers/webhooks/github';
 import { getSystemStatus } from './handlers/api/status';
+import { 
+  handleProgressUpdate, 
+  handleCompletion, 
+  getExecution, 
+  getExecutionLogs 
+} from './handlers/api/internal';
+import { 
+  getRepositoryConfig, 
+  setRepositoryConfig, 
+  getRepositoryStatus 
+} from './handlers/api/repositories';
+import { 
+  executeIssueInContainer, 
+  getContainerStatus, 
+  listContainers 
+} from './handlers/api/containers';
 import { logWithContext } from './log';
 
 // Re-export Durable Objects from the old index for now
@@ -56,13 +72,23 @@ export default {
       // API v1 endpoints
       router.get('/api/v1/status', getSystemStatus);
 
-      // TODO: Additional API endpoints
-      // router.get('/api/v1/repositories/{owner}/{repo}/config', getRepositoryConfig);
-      // router.put('/api/v1/repositories/{owner}/{repo}/config', setRepositoryConfig);
-      // router.get('/api/v1/executions/{id}', getExecution);
-      // router.get('/api/v1/executions/{id}/logs', getExecutionLogs);
-      // router.post('/api/v1/internal/progress/{contextId}', handleProgressUpdate);
-      // router.post('/api/v1/internal/completion/{contextId}', handleCompletion);
+      // Repository configuration endpoints
+      router.get('/api/v1/repositories/{owner}/{repo}/config', getRepositoryConfig);
+      router.put('/api/v1/repositories/{owner}/{repo}/config', setRepositoryConfig);
+      router.get('/api/v1/repositories/{owner}/{repo}/status', getRepositoryStatus);
+
+      // Container orchestration endpoints
+      router.post('/api/v1/containers/execute', executeIssueInContainer);
+      router.get('/api/v1/containers/{containerId}/status', getContainerStatus);
+      router.get('/api/v1/containers', listContainers);
+
+      // Execution tracking endpoints
+      router.get('/api/v1/executions/{contextId}', getExecution);
+      router.get('/api/v1/executions/{contextId}/logs', getExecutionLogs);
+
+      // Internal communication endpoints (Container → Worker)
+      router.post('/api/v1/internal/progress/{contextId}', handleProgressUpdate);
+      router.post('/api/v1/internal/completion/{contextId}', handleCompletion);
 
       // Handle the request
       const response = await router.handle(request, env);
