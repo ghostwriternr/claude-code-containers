@@ -5,19 +5,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Commands
 
 ```bash
-npm run dev          # Start local development server (http://localhost:8787)
-npm run deploy       # Deploy to Cloudflare Workers
-npm run cf-typegen   # Generate TypeScript types after wrangler config changes
+bun run dev          # Start local development server (http://localhost:8787)
+bun run deploy       # Deploy to Cloudflare Workers
+bun run cf-typegen   # Generate TypeScript types after wrangler config changes
+bun run typecheck    # Run TypeScript type checking
+bun run format       # Format code with Prettier
 ```
 
-**⚠️ Important:** Always run `npm run cf-typegen` after making changes to `wrangler.jsonc`. This regenerates the TypeScript types and updates `worker-configuration.d.ts` to match your bindings and configuration.
+**⚠️ Important:** Always run `bun run cf-typegen` after making changes to `wrangler.jsonc`. This regenerates the TypeScript types and updates `worker-configuration.d.ts` to match your bindings and configuration.
+
+### Package Management & Runtime
+
+This project uses **Bun** as the package manager and JavaScript runtime for better performance and compatibility with the claude-code-action submodule.
+
+```bash
+bun install                         # Install dependencies
+bun run dev                         # Start local development
+bun run typecheck                   # Type checking
+```
 
 ### Wrangler CLI Commands
 
 ```bash
-npx wrangler dev                    # Start local development (same as npm run dev)
+npx wrangler dev                    # Start local development (same as bun run dev)
 npx wrangler dev --remote          # Use remote Cloudflare resources
-npx wrangler deploy                 # Deploy to production (same as npm run deploy)
+npx wrangler deploy                 # Deploy to production (same as bun run deploy)
 npx wrangler login                  # Authenticate with Cloudflare
 npx wrangler versions upload        # Upload new version with preview URL
 ```
@@ -128,6 +140,13 @@ export default {
 - Workers must start within 400ms - keep imports and initialization lightweight
 - Use `.dev.vars` for local secrets (never commit this file)
 - Test with `--remote` flag to use actual Cloudflare resources during development
+
+### TypeScript Code Quality Rules
+- **NEVER use `any` type** - Always provide proper type annotations
+- Use `unknown` for truly unknown data, then narrow with type guards
+- Prefer type assertions with `as` only when you can guarantee the type
+- Use union types and optional properties instead of `any`
+- Create proper interfaces for all data structures
 
 ## Current Implementation Status
 

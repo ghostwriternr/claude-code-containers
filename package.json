@@ -3,16 +3,23 @@
 	"description": "Build a Container-enabled Worker",
 	"version": "0.0.3",
 	"private": true,
+	"workspaces": [
+		"lib/claude-code-action"
+	],
 	"scripts": {
 		"deploy": "wrangler deploy",
 		"dev": "wrangler dev",
 		"start": "wrangler dev",
-		"cf-typegen": "wrangler types"
+		"cf-typegen": "wrangler types",
+		"format": "prettier --write .",
+		"format:check": "prettier --check .",
+		"typecheck": "tsc --noEmit"
 	},
 	"devDependencies": {
 		"@types/node": "^24.0.3",
 		"typescript": "^5.5.2",
-		"wrangler": "^4.20.5"
+		"wrangler": "^4.20.5",
+		"prettier": "3.5.3"
 	},
 	"dependencies": {
 		"@cloudflare/containers": "0.0.8",

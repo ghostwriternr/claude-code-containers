@@ -19,6 +19,16 @@
 		],
 		/* Enable importing .json files */
 		"resolveJsonModule": true,
+		
+		/* Path mapping for clean imports */
+		"baseUrl": ".",
+		"paths": {
+			"@claude-action": ["./src/lib/claude-action/index"],
+			"@claude-action/*": ["./lib/claude-code-action/src/*"],
+			"@lib/*": ["./src/lib/*"],
+			"@adapters": ["./src/lib/adapters/index"],
+			"@adapters/*": ["./src/lib/adapters/*"]
+		},
 
 		/* Allow JavaScript files to be a part of your program. Use the `checkJS` option to get errors from these files. */
 		"allowJs": true,

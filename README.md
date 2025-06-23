@@ -61,10 +61,13 @@ Once configured, the system works automatically:
 
 ```bash
 # Install dependencies
-npm install
+bun install
 
 # Start development server
-npm run dev
+bun run dev
+
+# Run type checking
+bun run typecheck
 ```
 
 ## 📄 License

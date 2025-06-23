@@ -1,0 +1,16 @@
+[install]
+# Configure workspaces to include claude-code-action
+workspace = true
+# Use exact versions for better reproducibility
+exact = true
+
+[bundler]
+# Optimize imports for tree-shaking
+treeshaking = true
+minify = true
+# Support CommonJS modules from dependencies
+commonjs = true
+
+[run]
+# Configure Bun to use Workers compatibility
+bun = true
