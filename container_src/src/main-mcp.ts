@@ -19,6 +19,7 @@ import {
   type IssuePayload,
   type GitHubContext 
 } from './adapters/github-data.js';
+import { ProgressReporter } from './adapters/progress-reporter.js';
 
 const PORT = 8080;
 
@@ -253,23 +254,36 @@ Work methodically and provide clear explanations of your approach. Use the MCP t
 }
 
 // Process issue with MCP server integration
-async function processIssueWithMcp(issuePayload: IssuePayload, githubToken: string): Promise<ContainerResponse> {
+async function processIssueWithMcp(issuePayload: IssuePayload, githubToken: string, contextId?: string, workerBaseUrl?: string): Promise<ContainerResponse> {
   logWithContext('ISSUE_PROCESSOR', 'Starting issue processing with MCP server', {
     issueNumber: issuePayload.issueNumber,
-    title: issuePayload.title
+    title: issuePayload.title,
+    contextId
   });
+
+  // Initialize progress reporter
+  const progressReporter = new ProgressReporter(
+    contextId || `issue-${issuePayload.issueNumber}-${Date.now()}`,
+    workerBaseUrl
+  );
 
   const results: SDKMessage[] = [];
   let turnCount = 0;
 
   try {
+    // Report start of processing
+    await progressReporter.reportProgress('started', '🚀 Starting Claude Code analysis with MCP tools...');
+
     // 1. Setup workspace
+    await progressReporter.reportStage('analyzing', 'Setting up workspace and cloning repository...');
     const workspaceDir = await setupWorkspace(issuePayload.repositoryUrl, issuePayload.issueNumber);
     
     // 2. Convert to GitHub context format
+    await progressReporter.reportStage('exploring', 'Converting issue data to GitHub context format...');
     const context = convertIssuePayloadToContext(issuePayload);
     
     // 3. Create GitHub client and initial comment
+    await progressReporter.reportStage('planning', 'Creating GitHub client and posting initial comment...');
     const octokit = createOctokitClient(githubToken);
     const comment = await createInitialComment(
       octokit, 
@@ -283,6 +297,7 @@ async function processIssueWithMcp(issuePayload: IssuePayload, githubToken: stri
     });
 
     // 4. Setup MCP environment
+    await progressReporter.reportStage('implementing', 'Setting up MCP environment for advanced GitHub operations...', 25);
     const mcpConfigParams: McpConfigParams = {
       githubToken,
       owner: context.repository.owner,
@@ -303,6 +318,7 @@ async function processIssueWithMcp(issuePayload: IssuePayload, githubToken: stri
     });
 
     // 5. Generate prompt for Claude with MCP context
+    await progressReporter.reportStage('implementing', 'Generating context-aware prompt for Claude Code...', 30);
     const prompt = generateClaudePrompt(issuePayload, workspaceDir);
 
     // 6. Change to workspace directory and execute Claude Code with MCP
@@ -314,6 +330,8 @@ async function processIssueWithMcp(issuePayload: IssuePayload, githubToken: stri
       mcpConfigPath
     });
 
+    await progressReporter.reportStage('implementing', 'Executing Claude Code with MCP tools enabled...', 40);
+
     try {
       for await (const message of query({
         prompt,
@@ -324,6 +342,15 @@ async function processIssueWithMcp(issuePayload: IssuePayload, githubToken: stri
       })) {
         turnCount++;
         results.push(message);
+
+        // Report progress based on turn count
+        const progress = Math.min(40 + (turnCount * 10), 80); // Progress from 40% to 80%
+        await progressReporter.reportProgress(
+          'in_progress', 
+          `🤖 Claude Code turn ${turnCount} completed - processing with MCP tools...`,
+          progress,
+          { turnCount, messageType: message.type }
+        );
 
         logWithContext('CLAUDE_CODE', `MCP Turn ${turnCount} completed`, {
           type: message.type,
@@ -337,6 +364,8 @@ async function processIssueWithMcp(issuePayload: IssuePayload, githubToken: stri
         resultsCount: results.length
       });
 
+      await progressReporter.reportStage('testing', 'Analyzing Claude Code results and checking for changes...', 85);
+
       // 7. Get solution summary from last result
       let solution = '';
       if (results.length > 0) {
@@ -345,6 +374,7 @@ async function processIssueWithMcp(issuePayload: IssuePayload, githubToken: stri
       }
 
       // 8. Check if changes were made (MCP tools should have handled commits)
+      await progressReporter.reportStage('testing', 'Checking repository status for changes...', 90);
       const git = simpleGit(workspaceDir);
       const status = await git.status();
       const hasUncommittedChanges = !status.isClean();
@@ -357,12 +387,15 @@ async function processIssueWithMcp(issuePayload: IssuePayload, githubToken: stri
       );
 
       if (hasNewBranches || hasUncommittedChanges) {
+        await progressReporter.reportStage('creating-pr', 'Changes detected, preparing pull request...', 95);
+        
         // Create a feature branch if MCP didn't already
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace(/T/g, '-').split('.')[0];
         const branchName = `claude-code/issue-${issuePayload.issueNumber}-${timestamp}`;
         
         if (hasUncommittedChanges) {
           // Fallback: commit any remaining changes
+          await progressReporter.reportProgress('in_progress', 'Committing remaining changes...', 96);
           await git.checkoutLocalBranch(branchName);
           await git.add('.');
           await git.commit(`Fix issue #${issuePayload.issueNumber}: ${issuePayload.title}`);
@@ -371,6 +404,7 @@ async function processIssueWithMcp(issuePayload: IssuePayload, githubToken: stri
 
         // Create pull request
         try {
+          await progressReporter.reportProgress('in_progress', 'Creating pull request...', 98);
           const pullRequest = await createPullRequest(
             octokit,
             context,
@@ -393,6 +427,12 @@ async function processIssueWithMcp(issuePayload: IssuePayload, githubToken: stri
             `🔧 I've implemented a solution using advanced GitHub tools.\n\n**Pull Request Created:** ${pullRequest.html_url}\n\n${solution}\n\n---\n🤖 Generated with [Claude Code](https://claude.ai/code) using MCP server`
           );
 
+          await progressReporter.reportSuccess(
+            `✅ Pull request created successfully: ${pullRequest.html_url}`,
+            pullRequest.html_url,
+            comment.id
+          );
+
           return {
             success: true,
             message: `Pull request created successfully: ${pullRequest.html_url}`,
@@ -400,6 +440,8 @@ async function processIssueWithMcp(issuePayload: IssuePayload, githubToken: stri
             commentId: comment.id
           };
         } catch (prError) {
+          await progressReporter.reportError(prError as Error, 'creating-pr');
+          
           logWithContext('ISSUE_PROCESSOR', 'Failed to create pull request', {
             error: (prError as Error).message
           });
@@ -412,6 +454,12 @@ async function processIssueWithMcp(issuePayload: IssuePayload, githubToken: stri
             `${solution}\n\n---\n⚠️ **Note:** I implemented changes using MCP tools, but encountered an error creating the pull request: ${(prError as Error).message}\n\n🤖 Generated with [Claude Code](https://claude.ai/code) using MCP server`
           );
 
+          await progressReporter.reportCompletion(
+            true, 
+            'Solution implemented but PR creation failed', 
+            { error: (prError as Error).message, commentId: comment.id }
+          );
+
           return {
             success: true,
             message: 'Solution implemented but PR creation failed',
@@ -420,11 +468,19 @@ async function processIssueWithMcp(issuePayload: IssuePayload, githubToken: stri
         }
       } else {
         // No changes, just update comment with analysis
+        await progressReporter.reportStage('finalizing', 'No code changes needed, providing analysis...', 100);
+        
         await updateComment(
           octokit,
           context,
           comment.id,
           `${solution}\n\n---\n🤖 Generated with [Claude Code](https://claude.ai/code) using MCP server`
+        );
+
+        await progressReporter.reportSuccess(
+          '✅ Analysis completed - no code changes required',
+          undefined,
+          comment.id
         );
 
         return {
@@ -440,11 +496,18 @@ async function processIssueWithMcp(issuePayload: IssuePayload, githubToken: stri
     }
 
   } catch (error) {
+    await progressReporter.reportError(error as Error, 'general-processing');
+    
     logWithContext('ISSUE_PROCESSOR', 'Error in MCP issue processing', {
       error: (error as Error).message,
       turnCount,
       resultsCount: results.length
     });
+
+    await progressReporter.reportFailure(
+      (error as Error).message,
+      'general-processing'
+    );
 
     return {
       success: false,
@@ -516,11 +579,20 @@ async function processIssueHandler(req: http.IncomingMessage, res: http.ServerRe
 
   // Process issue with MCP integration
   try {
-    const result = await processIssueWithMcp(issuePayload, process.env.GITHUB_TOKEN);
+    const contextId = issueData.CONTEXT_ID;
+    const workerBaseUrl = issueData.WORKER_BASE_URL;
+    
+    const result = await processIssueWithMcp(
+      issuePayload, 
+      process.env.GITHUB_TOKEN!,
+      contextId,
+      workerBaseUrl
+    );
 
     logWithContext('ISSUE_HANDLER', 'MCP issue processing completed', {
       success: result.success,
-      hasPullRequest: !!result.pullRequestUrl
+      hasPullRequest: !!result.pullRequestUrl,
+      contextId
     });
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
