@@ -31,8 +31,8 @@ import {
 } from './handlers/api/containers';
 import { logWithContext } from './log';
 
-// Re-export Durable Objects from the old index for now
-export { MyContainer, GitHubAppConfigDO } from './index-old';
+// Export Durable Objects
+export { MyContainer, GitHubAppConfigDO } from './durable-objects';
 
 /**
  * Main Worker export with clean routing

@@ -5,7 +5,7 @@
 
 import { logWithContext } from '../../log';
 import { jsonResponse, errorResponse } from '../../router';
-import { handleIssuesEventMcp } from '../github_webhooks/issue-mcp';
+import { handleIssuesEvent } from '../github_webhooks/issue';
 import { handleInstallationEvent, handleInstallationRepositoriesEvent } from '../github_webhooks';
 
 /**
@@ -144,7 +144,7 @@ async function routeWebhookEvent(
 
     case 'issues':
       const issuesData = await request.json();
-      return handleIssuesEventMcp(issuesData, env, configDO);
+      return handleIssuesEvent(issuesData, env, configDO);
 
     case 'issue_comment':
       // TODO: Implement issue comment handling with adapters
