@@ -2,7 +2,7 @@
   "name": "claude-code-container",
   "type": "module",
   "version": "1.0.0",
-  "description": "Container that runs Claude Code for GitHub issue processing",
+  "description": "Container that runs Claude Code for GitHub issue processing with MCP server",
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc",
@@ -12,8 +12,11 @@
   },
   "dependencies": {
     "@anthropic-ai/claude-code": "^1.0.27",
+    "@modelcontextprotocol/sdk": "^1.0.3",
     "@octokit/rest": "^22.0.0",
-    "simple-git": "^3.28.0"
+    "node-fetch": "^3.3.2",
+    "simple-git": "^3.28.0",
+    "zod": "^3.22.0"
   },
   "devDependencies": {
     "@types/node": "^18.19.0",
@@ -26,7 +29,8 @@
     "claude-code",
     "github",
     "automation",
-    "ai"
+    "ai",
+    "mcp"
   ],
   "author": "",
   "license": "MIT"
