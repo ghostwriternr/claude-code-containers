@@ -54,7 +54,9 @@ This is a **Cloudflare Workers Container project** that integrates **Claude Code
 - Default port 8080, 45-second sleep timeout
 - Lifecycle hooks: `onStart()`, `onStop()`, `onError()`
 - Load balancing support across multiple container instances
-- Contains Claude Code SDK (`@anthropic-ai/claude-code`) and GitHub API client (`@octokit/rest`)
+- **MCP Integration**: Contains claude-code-action's MCP server for advanced GitHub operations
+- Uses Claude Code SDK (`@anthropic-ai/claude-code`) with MCP tools for file operations, commits, and PR creation
+- GitHub API client (`@octokit/rest`) for comment management and repository operations
 
 **GitHub Integration:**
 - Uses GitHub App Manifests for one-click app creation
@@ -156,11 +158,13 @@ export default {
 - Basic webhook processing infrastructure with signature verification
 - Container enhancement with Claude Code SDK and GitHub API integration
 - Issue detection and routing to Claude Code containers
+- **MCP Server Integration**: claude-code-action's MCP server for advanced GitHub operations
+- Production-ready API architecture with clean routing and REST endpoints
 
 **🔧 In Progress:**
-- End-to-end issue processing with Claude Code analysis and solutions
-- Pull request creation from Claude's code modifications
-- Enhanced error handling and progress monitoring
+- Container communication bridge with new API endpoints
+- Progress reporting from Container to Worker using MCP tools
+- End-to-end testing of MCP-powered issue processing flow
 
 **Important:** Containers are a Beta feature - API may change. The `cf-containers` library version is pinned to 0.0.7.
 
@@ -174,7 +178,32 @@ This project creates an automated GitHub issue processor powered by Claude Code:
 4. **Result Delivery**: Solutions are delivered as GitHub comments or pull requests
 
 **Key Integration Points:**
-- `src/handlers/github_webhook.ts` - Main webhook entry point
-- `src/handlers/github_webhooks/issues.ts` - Issue-specific processing
-- `container_src/src/main.ts` - Claude Code execution environment
+- `src/handlers/webhooks/github.ts` - Production webhook processor with adapter integration
+- `src/handlers/github_webhooks/issue.ts` - Issue-specific processing with claude-code-action utilities
+- `container_src/src/main-mcp.ts` - MCP-enabled Claude Code execution environment
+- `container_src/src/adapters/mcp-config.ts` - MCP server configuration for GitHub operations
+- `container_src/src/adapters/github-data.ts` - GitHub data conversion and API operations
 - Durable Objects for persistent, encrypted storage of credentials and state
+
+## MCP Server Integration
+
+This project integrates Anthropic's claude-code-action MCP server for advanced GitHub operations:
+
+**MCP Tools Available:**
+- `commit_files`: Atomically commit multiple files to repository branches
+- `delete_files`: Remove files from repository with proper commit messages  
+- `update_claude_comment`: Update progress comments in real-time during processing
+
+**MCP Configuration:**
+- Configured automatically in container environment at `/app/claude-action/`
+- Uses `github_file_ops` server from claude-code-action for file operations
+- Supports additional GitHub MCP server for extended GitHub API operations
+- Environment variables passed from Worker to Container for authentication
+
+**Container MCP Workflow:**
+1. Worker receives GitHub webhook and validates signatures
+2. Worker extracts issue context and passes to Container with credentials
+3. Container sets up MCP environment with claude-code-action configuration
+4. Container executes Claude Code with MCP tools enabled
+5. MCP tools handle git operations, file changes, and progress updates
+6. Container reports results back to Worker for final comment updates
