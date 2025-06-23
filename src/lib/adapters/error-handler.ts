@@ -4,6 +4,32 @@
  */
 
 export class WorkersErrorHandler {
+  private env: Env;
+
+  constructor(env: Env) {
+    this.env = env;
+  }
+
+  /**
+   * Handle general errors and return appropriate response
+   */
+  handleError(error: unknown, context?: string): Response {
+    const err = error instanceof Error ? error : new Error(String(error));
+    const errorResponse = {
+      error: err.message,
+      context,
+      timestamp: new Date().toISOString()
+    };
+
+    console.error('Worker error:', err);
+
+    return new Response(JSON.stringify(errorResponse), {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+  }
   /**
    * Handle GitHub API errors with Workers-specific logging
    */

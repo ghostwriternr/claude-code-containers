@@ -3,17 +3,31 @@
  * Provides proper typing for Workers-specific functionality
  */
 
-import type { ParsedGitHubContext } from '@claude-action';
+// Re-export types from claude-code-action for clean imports
+export type { ParsedGitHubContext } from '@claude-action/github/context';
+export type { FetchDataResult } from '@claude-action/github/data/fetcher';  
+export type { CommonFields, PreparedContext, EventData } from '@claude-action/create-prompt/types';
+
+// Define Env type to match worker-configuration.d.ts
+export interface Env {
+  WRANGLER_CONTAINERS_ISSUE_HACK?: string;
+  MY_CONTAINER: DurableObjectNamespace;
+  GITHUB_APP_CONFIG: DurableObjectNamespace;
+  R2_BUCKET?: R2Bucket;
+  WORKER_URL?: string;
+}
 
 // GitHub webhook payload types (basic structure)
 export interface GitHubWebhookPayload {
   action?: string;
   repository: {
+    id: number;
     name: string;
     full_name: string;
     owner: {
       login: string;
     };
+    clone_url: string;
   };
   sender: {
     login: string;
@@ -22,9 +36,16 @@ export interface GitHubWebhookPayload {
 
 export interface IssueWebhookPayload extends GitHubWebhookPayload {
   issue: {
+    id: number;
     number: number;
     title: string;
     body: string | null;
+    user: {
+      login: string;
+    };
+    labels?: Array<{
+      name: string;
+    }>;
   };
 }
 

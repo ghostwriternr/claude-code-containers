@@ -15,6 +15,19 @@ export class WorkersDataFetcher {
   }
   
   /**
+   * Fetch basic GitHub data for prompt generation (lightweight operation)
+   */
+  async fetchBasicData(octokits: Octokits, context: ParsedGitHubContext): Promise<FetchDataResult> {
+    // For basic data, we don't need full file content - just structure
+    if (this.env.R2_BUCKET) {
+      const imageHandler = new R2ImageHandler(this.env.R2_BUCKET);
+      return fetchGitHubData(octokits, context);
+    }
+    
+    return fetchGitHubData(octokits, context);
+  }
+
+  /**
    * Fetch GitHub data for webhook processing
    * Integrates R2 storage for image caching
    */

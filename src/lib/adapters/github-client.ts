@@ -5,6 +5,9 @@
 
 import { createOctokit } from '@claude-action';
 import type { Octokits } from '@claude-action';
+
+// Re-export for clean imports
+export type { Octokits };
 import type { Env, GitHubAppConfigDO } from './types';
 
 export class WorkersGitHubClient {

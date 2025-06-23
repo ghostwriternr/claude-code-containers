@@ -1,8 +1,8 @@
 import { logWithContext } from "../log";
-import { handleInstallationEvent, handleInstallationRepositoriesEvent, handleIssuesEvent } from "./github_webhooks";
+import { handleInstallationEvent, handleInstallationRepositoriesEvent, handleIssuesEvent, handleIssuesEventEnhanced } from "./github_webhooks";
 
 // Route webhook events to specific handlers
-async function routeWebhookEvent(event: string, data: any, configDO: any, env: any): Promise<Response> {
+async function routeWebhookEvent(event: string, data: any, configDO: any, env: any, request: Request): Promise<Response> {
   logWithContext('EVENT_ROUTER', 'Routing webhook event', {
     event,
     action: data.action,
@@ -17,7 +17,8 @@ async function routeWebhookEvent(event: string, data: any, configDO: any, env: a
       return handleInstallationRepositoriesEvent(data, configDO);
 
     case 'issues':
-      return handleIssuesEvent(data, env, configDO);
+      // Use enhanced handler for better Worker/Container separation
+      return handleIssuesEventEnhanced(request, env, configDO);
 
     default:
       logWithContext('EVENT_ROUTER', 'Unhandled webhook event', {
@@ -214,7 +215,7 @@ export async function handleGitHubWebhook(request: Request, env: any): Promise<R
     // Route to appropriate event handler
     logWithContext('WEBHOOK', 'Routing to event handler', { event });
 
-    const eventResponse = await routeWebhookEvent(event, webhookData, configDO, env);
+    const eventResponse = await routeWebhookEvent(event, webhookData, configDO, env, request);
 
     const processingTime = Date.now() - startTime;
     logWithContext('WEBHOOK', 'Webhook processing completed', {

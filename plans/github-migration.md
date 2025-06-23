@@ -132,6 +132,32 @@ export class WorkersDataFetcher {
 }
 ```
 
+### Phase 2 Completion Summary ✅
+
+**Completed Core Integration:**
+- ✅ **Worker/Container Separation**: Clear architectural boundaries defined and implemented
+- ✅ **Prompt Generation**: `WorkersPromptGenerator` using claude-code-action's `generatePrompt` directly
+- ✅ **Configuration Management**: `ConfigManager` bridging Durable Objects with claude-code-action schema
+- ✅ **Comment Management**: `WorkersCommentManager` for GitHub comment operations with progress tracking
+- ✅ **Progress Bridge**: Real-time progress updates from Container to Worker to GitHub
+- ✅ **Enhanced Webhook Handler**: `handleIssuesEventEnhanced` with full adapter integration
+
+**Files Created/Updated:**
+```
+src/lib/adapters/prompt-generator.ts       # Prompt generation with claude-code-action integration
+src/lib/adapters/config-bridge.ts          # Configuration management for repositories
+src/lib/adapters/comment-manager.ts        # GitHub comment operations
+src/lib/adapters/progress-bridge.ts        # Progress tracking system
+src/handlers/github_webhooks/issue-enhanced.ts  # Enhanced issue handler
+src/handlers/github_webhook.ts             # Updated to use enhanced handler
+```
+
+**Architecture Implementation:**
+- **Worker**: Handles authentication, initial comments, configuration, container orchestration
+- **Container**: Handles data fetching, code analysis, solution implementation, progress updates
+- **Progress Flow**: Container → Progress Bridge → Worker → GitHub Comments
+- **Data Flow**: Webhook → Worker (parse/auth) → Container (process) → Worker (results) → GitHub
+
 ### Phase 1 Completion Summary ✅
 
 **Completed Infrastructure:**
@@ -161,16 +187,32 @@ src/lib/adapters/                     # Workers adapters (7 files)
 - ✅ All imports work with clean path mapping
 - ✅ Proper error handling and type safety throughout
 
-## Phase 2: Core Integration (Week 2)
+## Phase 2: Core Integration (Week 2) ✅ COMPLETED
+
+### Architecture: Clear Worker/Container Separation
+
+**Worker Responsibilities** (Fast GitHub operations):
+- Webhook validation & authentication
+- Initial comment creation ("Claude is analyzing...")
+- Token management & refresh
+- Container orchestration
+- Quick GitHub API calls
+
+**Container Responsibilities** (Heavy GitHub operations):
+- Repository data fetching via `fetchGitHubData`
+- Code analysis & generation with MCP server
+- Pull request creation
+- Progress comment updates
+- claude-code-action execution environment
 
 ### 2.1 Prompt Generation Integration
 
-**Goal**: Integrate claude-code-action's prompt generation with Workers configuration
+**Goal**: Integrate claude-code-action's prompt generation with clear Worker/Container boundaries
 
 **Tasks**:
 - Import `createPrompt` function directly from claude-code-action
 - Create configuration adapter for Durable Objects → prompt inputs
-- Bridge Workers container environment with prompt file generation
+- Implement Worker → Container prompt handoff
 - Add custom instructions management via Durable Objects
 
 **Key Files to Create**:
@@ -205,12 +247,12 @@ export class WorkersPromptGenerator {
 
 ### 2.2 Comment Management Integration
 
-**Goal**: Integrate comment management with Workers container orchestration
+**Goal**: Implement clear separation between Worker and Container comment responsibilities
 
 **Tasks**:
-- Import comment operations directly from claude-code-action
-- Create progress callback system for container → comment updates
-- Adapt branch management for Workers deployment URLs
+- Worker: Initial comment creation using claude-code-action imports
+- Container: Progress updates and completion comments
+- Create progress callback system for Container → Worker → GitHub updates
 - Integrate with existing Durable Objects for state management
 
 **Key Files to Create**:
@@ -243,9 +285,165 @@ export class WorkersCommentManager {
 }
 ```
 
+## Phase 2.5: Complete Architecture Redesign (No Backwards Compatibility) 🔥
+
+### Goal: Production-First API Architecture
+
+**BREAKING CHANGES WELCOME** - Let's build this right!
+
+**New Clean Architecture:**
+
+```
+Production API:
+├── /                   # Root: Setup status & health check
+├── /setup/
+│   ├── claude          # POST: Configure Anthropic API key  
+│   └── github/         # GitHub App setup flow
+│       ├── create      # GET: Start GitHub App creation
+│       ├── callback    # GET: OAuth callback handler
+│       └── install     # GET: App installation confirmation
+├── /webhooks/
+│   └── github          # POST: GitHub webhook processor (the main event!)
+├── /api/v1/            # Versioned API for future expansion
+│   ├── status          # GET: System health & configuration
+│   ├── repositories/   # Repository management
+│   │   ├── {owner}/{repo}/config  # GET/PUT: Repo-specific settings
+│   │   └── {owner}/{repo}/status  # GET: Processing status
+│   ├── executions/     # Execution tracking
+│   │   ├── {id}        # GET: Execution details
+│   │   └── {id}/logs   # GET: Execution logs
+│   └── internal/       # Internal Worker ↔ Container communication
+│       ├── progress/{contextId}    # POST: Progress updates
+│       └── completion/{contextId}  # POST: Completion notifications
+└── /admin/             # Admin interface (optional web UI)
+    ├── dashboard       # GET: Web dashboard
+    ├── logs           # GET: System logs
+    └── metrics        # GET: Usage analytics
+```
+
+**Benefits of Clean Slate:**
+- ✅ **Proper REST semantics** (`/api/v1/repositories/{owner}/{repo}/config`)
+- ✅ **Clear separation** (setup vs webhooks vs API vs admin)
+- ✅ **Version-ready** (`/api/v1/` for future expansion)
+- ✅ **Self-documenting** (URL structure tells you what it does)
+- ✅ **Secure by design** (admin endpoints separate, easy to protect)
+- ✅ **Container communication** (dedicated internal endpoints)
+
+**DELETED Legacy Endpoints:**
+- ❌ `/container/*` (arbitrary testing endpoints)
+- ❌ `/lb/*` (load balancing test endpoints)  
+- ❌ `/singleton/*` (singleton test endpoints)
+- ❌ `/error/*` (error test endpoints)
+- ❌ `/claude-setup` (renamed to `/setup/claude`)
+- ❌ `/gh-setup/*` (redesigned as `/setup/github/*`)
+- ❌ `/gh-status` (replaced by `/api/v1/status`)
+
+**Implementation Approach:**
+1. **Delete old handlers** completely
+2. **Build new routing system** from scratch
+3. **Update all adapters** to use new structure
+4. **Add OpenAPI documentation** for the new API
+
+### CRITICAL REQUIREMENT: Preserve Zero-Config Setup Experience
+
+**Current Amazing UX (MUST MAINTAIN):**
+1. ✅ Click "Deploy to Cloudflare" button
+2. ✅ Visit `/setup/claude` → Enter Anthropic API key
+3. ✅ Visit `/setup/github/create` → One-click GitHub App creation
+4. ✅ Done! Issues automatically processed
+
+**Enhanced Setup Flow (maintains simplicity):**
+```
+POST /setup/claude
+├── Store encrypted API key in Durable Objects
+├── Return setup status
+└── Redirect to GitHub setup
+
+GET /setup/github/create
+├── Generate GitHub App Manifest
+├── Initiate GitHub OAuth flow
+└── Return to /setup/github/callback
+
+GET /setup/github/callback
+├── Process GitHub OAuth response
+├── Store app credentials in Durable Objects
+└── Redirect to /setup/github/install
+
+GET /setup/github/install
+├── Display installation success
+├── Show webhook URL
+└── Provide next steps
+```
+
+**Zero Manual Configuration Guarantees:**
+- ✅ No GitHub Secrets required
+- ✅ No manual webhook configuration  
+- ✅ No environment variable setup
+- ✅ All credentials stored in Cloudflare Durable Objects
+- ✅ Dynamic webhook URLs (matches deployed worker)
+- ✅ Automatic GitHub App creation with proper permissions
+
+**Setup Status Endpoint:**
+```
+GET /api/status
+{
+  "anthropic": { "configured": true },
+  "github": { 
+    "app_created": true,
+    "installed": true,
+    "repositories": 5
+  },
+  "deployment": {
+    "worker_url": "https://your-app.workers.dev",
+    "webhook_url": "https://your-app.workers.dev/webhooks/github"
+  }
+}
+```
+
 ## Phase 3: Container & MCP Integration (Week 3)
 
 ### 3.1 MCP Server Container Integration
+
+### Why MCP Integration is Essential
+
+**MCP (Model Context Protocol) = Claude's "Tools" for Code Operations**
+
+**What MCP Provides:**
+1. **GitHub Tools**: Claude can directly read files, create PRs, post comments
+2. **File System Tools**: Claude can navigate, read, edit, create files in the repo
+3. **Git Tools**: Claude can commit, branch, merge operations
+4. **Terminal Tools**: Claude can run tests, build commands, linters
+5. **Context Management**: Claude maintains awareness of repository structure
+
+**Without MCP Server:**
+```
+Claude Code → Generate text suggestions → Human implements manually
+```
+
+**With MCP Server (claude-code-action approach):**
+```
+Claude Code → Direct file operations → Automatic PR creation → Live progress updates
+```
+
+**Real Example Flow:**
+1. **Issue**: "Add dark mode toggle to settings page"
+2. **MCP GitHub Tool**: Claude reads current settings page code
+3. **MCP File Tool**: Claude analyzes component structure
+4. **MCP File Tool**: Claude creates/modifies CSS variables
+5. **MCP File Tool**: Claude updates React components
+6. **MCP Terminal Tool**: Claude runs tests to verify changes
+7. **MCP GitHub Tool**: Claude creates PR with all changes
+8. **MCP GitHub Tool**: Claude posts progress comments
+
+**Why claude-code-action's MCP Server is Perfect:**
+- ✅ **Battle-tested**: Used in production GitHub Action
+- ✅ **Comprehensive**: Full GitHub API + file system integration
+- ✅ **Secure**: Proper token handling, safe operations
+- ✅ **Performant**: Optimized for repository operations
+- ✅ **Compatible**: Designed for Claude Code CLI (what we run in containers)
+
+**Alternative (NOT Recommended):**
+Building our own tools would mean recreating all of GitHub's API integrations, file operations, git management, etc. - essentially rebuilding claude-code-action from scratch.
 
 **Goal**: Run claude-code-action's MCP server directly in Cloudflare Containers
 
