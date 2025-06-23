@@ -6,28 +6,28 @@
 import { Router, handleCors } from './router';
 import { handleRoot } from './handlers/root';
 import { handleClaudeSetup, getClaudeSetupStatus } from './handlers/setup/claude';
-import { 
-  handleGitHubAppCreation, 
-  handleGitHubCallback, 
-  handleGitHubInstall 
+import {
+  handleGitHubAppCreation,
+  handleGitHubCallback,
+  handleGitHubInstall
 } from './handlers/setup/github';
 import { handleGitHubWebhook } from './handlers/webhooks/github';
 import { getSystemStatus } from './handlers/api/status';
-import { 
-  handleProgressUpdate, 
-  handleCompletion, 
-  getExecution, 
-  getExecutionLogs 
+import {
+  handleProgressUpdate,
+  handleCompletion,
+  getExecution,
+  getExecutionLogs
 } from './handlers/api/internal';
-import { 
-  getRepositoryConfig, 
-  setRepositoryConfig, 
-  getRepositoryStatus 
+import {
+  getRepositoryConfig,
+  setRepositoryConfig,
+  getRepositoryStatus
 } from './handlers/api/repositories';
-import { 
-  executeIssueInContainer, 
-  getContainerStatus, 
-  listContainers 
+import {
+  executeIssueInContainer,
+  getContainerStatus,
+  listContainers
 } from './handlers/api/containers';
 import { logWithContext } from './log';
 
@@ -45,7 +45,7 @@ export default {
 
     const startTime = Date.now();
     const url = new URL(request.url);
-    
+
     logWithContext('WORKER', 'Request received', {
       method: request.method,
       pathname: url.pathname,
