@@ -57,5 +57,5 @@ ENV NODE_ENV=production
 
 EXPOSE 8080
 
-# Run the MCP-enabled container
-CMD ["bun", "dist/main-mcp.js"]
+# Run the ParsedGitHubContext-enabled container with MCP
+CMD ["bun", "dist/main-context.js"]
