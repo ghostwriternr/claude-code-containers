@@ -66,6 +66,29 @@ export class GitHubAppConfigDO {
       )
     `);
 
+    // Create repository_configs table
+    this.storage.sql.exec(`
+      CREATE TABLE IF NOT EXISTS repository_configs (
+        id INTEGER PRIMARY KEY,
+        owner TEXT NOT NULL,
+        repo TEXT NOT NULL,
+        enabled BOOLEAN NOT NULL DEFAULT 1,
+        custom_instructions TEXT,
+        allowed_tools TEXT,
+        disallowed_tools TEXT,
+        auto_create_pr BOOLEAN DEFAULT 1,
+        progress_comments BOOLEAN DEFAULT 1,
+        trigger_phrases TEXT,
+        max_execution_time INTEGER DEFAULT 10,
+        exclude_labels TEXT,
+        include_labels TEXT,
+        assigned_users_only BOOLEAN DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE(owner, repo)
+      )
+    `);
+
     logWithContext('DURABLE_OBJECT', 'SQLite tables initialized successfully');
   }
 
@@ -209,6 +232,40 @@ export class GitHubAppConfigDO {
       });
 
       return new Response(JSON.stringify({ anthropicApiKey: apiKey }));
+    }
+
+    if (url.pathname === '/repo-config/get' && request.method === 'POST') {
+      logWithContext('DURABLE_OBJECT', 'Retrieving repository configuration');
+
+      const { owner, repo } = await request.json() as { owner: string; repo: string };
+      const config = await this.getRepositoryConfig(owner, repo);
+
+      logWithContext('DURABLE_OBJECT', 'Repository configuration retrieved', {
+        owner,
+        repo,
+        hasConfig: !!config
+      });
+
+      return new Response(JSON.stringify({ config }));
+    }
+
+    if (url.pathname === '/repo-config/set' && request.method === 'POST') {
+      logWithContext('DURABLE_OBJECT', 'Storing repository configuration');
+
+      const { owner, repo, config } = await request.json() as {
+        owner: string;
+        repo: string;
+        config: any;
+      };
+
+      await this.setRepositoryConfig(owner, repo, config);
+
+      logWithContext('DURABLE_OBJECT', 'Repository configuration stored', {
+        owner,
+        repo
+      });
+
+      return new Response('OK');
     }
 
     return new Response('Not Found', { status: 404 });
@@ -392,6 +449,77 @@ export class GitHubAppConfigDO {
         error: error instanceof Error ? error.message : String(error)
       });
       return null;
+    }
+  }
+
+  async getRepositoryConfig(owner: string, repo: string): Promise<any | null> {
+    try {
+      const cursor = this.storage.sql.exec(
+        `SELECT * FROM repository_configs WHERE owner = ? AND repo = ?`,
+        owner, repo
+      );
+      const result = cursor.toArray()[0];
+
+      if (!result) return null;
+
+      return {
+        owner: result.owner as string,
+        repo: result.repo as string,
+        enabled: !!result.enabled,
+        customInstructions: result.custom_instructions as string,
+        allowedTools: result.allowed_tools ? JSON.parse(result.allowed_tools as string) : undefined,
+        disallowedTools: result.disallowed_tools ? JSON.parse(result.disallowed_tools as string) : undefined,
+        autoCreatePR: !!result.auto_create_pr,
+        progressComments: !!result.progress_comments,
+        triggerPhrases: result.trigger_phrases ? JSON.parse(result.trigger_phrases as string) : undefined,
+        maxExecutionTime: result.max_execution_time as number,
+        excludeLabels: result.exclude_labels ? JSON.parse(result.exclude_labels as string) : undefined,
+        includeLabels: result.include_labels ? JSON.parse(result.include_labels as string) : undefined,
+        assignedUsersOnly: !!result.assigned_users_only,
+        createdAt: result.created_at as string,
+        updatedAt: result.updated_at as string
+      };
+    } catch (error) {
+      logWithContext('DURABLE_OBJECT', 'Failed to get repository config', {
+        owner, repo,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      return null;
+    }
+  }
+
+  async setRepositoryConfig(owner: string, repo: string, config: any): Promise<void> {
+    try {
+      const now = new Date().toISOString();
+
+      this.storage.sql.exec(
+        `INSERT OR REPLACE INTO repository_configs
+         (owner, repo, enabled, custom_instructions, allowed_tools, disallowed_tools,
+          auto_create_pr, progress_comments, trigger_phrases, max_execution_time,
+          exclude_labels, include_labels, assigned_users_only, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT created_at FROM repository_configs WHERE owner = ? AND repo = ?), ?), ?)`,
+        owner,
+        repo,
+        config.enabled ? 1 : 0,
+        config.customInstructions || null,
+        config.allowedTools ? JSON.stringify(config.allowedTools) : null,
+        config.disallowedTools ? JSON.stringify(config.disallowedTools) : null,
+        config.autoCreatePR ? 1 : 0,
+        config.progressComments ? 1 : 0,
+        config.triggerPhrases ? JSON.stringify(config.triggerPhrases) : null,
+        config.maxExecutionTime || 10,
+        config.excludeLabels ? JSON.stringify(config.excludeLabels) : null,
+        config.includeLabels ? JSON.stringify(config.includeLabels) : null,
+        config.assignedUsersOnly ? 1 : 0,
+        owner, repo, now, // For COALESCE to check existing created_at
+        now
+      );
+    } catch (error) {
+      logWithContext('DURABLE_OBJECT', 'Failed to set repository config', {
+        owner, repo,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      throw error;
     }
   }
 }

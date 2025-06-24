@@ -24,8 +24,7 @@ export interface RepositoryConfig {
   updatedAt: string;
 }
 
-// Temporary storage (in production, use Durable Objects)
-const repositoryConfigs = new Map<string, RepositoryConfig>();
+// Repository configurations are now stored in Durable Objects
 
 /**
  * Get repository configuration
@@ -47,8 +46,17 @@ export async function getRepositoryConfig(
   }
 
   try {
-    const configKey = `${owner}/${repo}`;
-    const config = repositoryConfigs.get(configKey);
+    // Get configuration from Durable Object
+    const configId = env.GITHUB_APP_CONFIG.idFromName('claude-config');
+    const configDO = env.GITHUB_APP_CONFIG.get(configId);
+
+    const response = await configDO.fetch(new Request('http://internal/repo-config/get', {
+      method: 'POST',
+      body: JSON.stringify({ owner, repo })
+    }));
+
+    const data = await response.json() as { config: RepositoryConfig | null };
+    const config = data.config;
 
     if (!config) {
       // Return default configuration
@@ -120,8 +128,17 @@ export async function setRepositoryConfig(
       return errorResponse(validationError, 400);
     }
 
-    const configKey = `${owner}/${repo}`;
-    const existingConfig = repositoryConfigs.get(configKey);
+    // Get existing configuration from Durable Object
+    const configId = env.GITHUB_APP_CONFIG.idFromName('claude-config');
+    const configDO = env.GITHUB_APP_CONFIG.get(configId);
+
+    const getResponse = await configDO.fetch(new Request('http://internal/repo-config/get', {
+      method: 'POST',
+      body: JSON.stringify({ owner, repo })
+    }));
+
+    const getData = await getResponse.json() as { config: RepositoryConfig | null };
+    const existingConfig = getData.config;
 
     const updatedConfig: RepositoryConfig = {
       owner,
@@ -141,8 +158,11 @@ export async function setRepositoryConfig(
       updatedAt: new Date().toISOString()
     };
 
-    // Store configuration
-    repositoryConfigs.set(configKey, updatedConfig);
+    // Store configuration in Durable Object
+    await configDO.fetch(new Request('http://internal/repo-config/set', {
+      method: 'POST',
+      body: JSON.stringify({ owner, repo, config: updatedConfig })
+    }));
 
     logWithContext('REPO_CONFIG', 'Repository configuration updated', {
       owner,
@@ -150,9 +170,6 @@ export async function setRepositoryConfig(
       enabled: updatedConfig.enabled,
       changedFields: Object.keys(configUpdate)
     });
-
-    // TODO: Store in Durable Objects for persistence
-    // await storeRepositoryConfigInDO(env, configKey, updatedConfig);
 
     return jsonResponse({
       success: true,
@@ -191,8 +208,17 @@ export async function getRepositoryStatus(
   }
 
   try {
-    const configKey = `${owner}/${repo}`;
-    const config = repositoryConfigs.get(configKey);
+    // Get configuration from Durable Object
+    const configId = env.GITHUB_APP_CONFIG.idFromName('claude-config');
+    const configDO = env.GITHUB_APP_CONFIG.get(configId);
+
+    const response = await configDO.fetch(new Request('http://internal/repo-config/get', {
+      method: 'POST',
+      body: JSON.stringify({ owner, repo })
+    }));
+
+    const data = await response.json() as { config: RepositoryConfig | null };
+    const config = data.config;
 
     // TODO: Get actual processing statistics from storage
     const status = {
