@@ -21,12 +21,12 @@ export async function getSystemStatus(
 
   try {
     const workerUrl = getWorkerUrl(request);
-    
+
     logWithContext('STATUS_CHECK', 'Checking system status');
 
     // Check Claude configuration
     const claudeStatus = await checkClaudeConfiguration(env);
-    
+
     // Check GitHub configuration
     const githubStatus = await checkGitHubConfiguration(env);
 
@@ -75,7 +75,7 @@ async function checkClaudeConfiguration(env: Env): Promise<{
   try {
     const configId = env.GITHUB_APP_CONFIG.idFromName('claude-config');
     const configDO = env.GITHUB_APP_CONFIG.get(configId);
-    
+
     const response = await configDO.fetch(new Request('http://internal/get-claude-key'));
     const data = await response.json() as { anthropicApiKey: string | null };
 
@@ -83,7 +83,7 @@ async function checkClaudeConfiguration(env: Env): Promise<{
 
     return {
       configured,
-      message: configured 
+      message: configured
         ? 'Claude API key is configured'
         : 'Claude API key not configured'
     };
@@ -112,30 +112,38 @@ async function checkGitHubConfiguration(env: Env): Promise<{
   message: string;
 }> {
   try {
-    // This is a simplified check - in a real implementation,
-    // we'd iterate through all possible app configurations
-    // For now, let's check if we have any GitHub apps configured
-    
-    const apps: Array<{
-      id: string;
-      name: string;
-      slug: string;
-      installations: number;
-    }> = [];
+    const configId = env.GITHUB_APP_CONFIG.idFromName('claude-config');
+    const configDO = env.GITHUB_APP_CONFIG.get(configId);
 
-    let totalRepositories = 0;
-    let hasAnyApp = false;
+    const response = await configDO.fetch(new Request('http://internal/get'));
+    const data = await response.json() as {
+      appId?: string;
+      appName?: string;
+      slug?: string;
+      installationId?: string;
+      repositories?: Array<{ id: number; name: string; full_name: string }>;
+    };
 
-    // In a real implementation, we'd have a way to list all configured apps
-    // For now, this is a placeholder structure
-    
+    const hasApp = !!data.appId;
+    const hasInstallation = !!data.installationId;
+    const repositories = data.repositories || [];
+
+    const apps = hasApp ? [{
+      id: data.appId!,
+      name: data.appName || 'Unknown App',
+      slug: data.slug || 'unknown-app',
+      installations: hasInstallation ? 1 : 0
+    }] : [];
+
     return {
-      appCreated: hasAnyApp,
-      installed: hasAnyApp,
-      repositories: totalRepositories,
+      appCreated: hasApp,
+      installed: hasInstallation,
+      repositories: repositories.length,
       apps,
-      message: hasAnyApp 
-        ? `${apps.length} GitHub app(s) configured with ${totalRepositories} repositories`
+      message: hasApp
+        ? hasInstallation
+          ? `GitHub app "${data.appName}" configured and installed on ${repositories.length} repositories`
+          : `GitHub app "${data.appName}" created but not installed`
         : 'No GitHub apps configured'
     };
 
@@ -186,7 +194,7 @@ function getNextSteps(
       title: 'Install GitHub App',
       description: 'Install the app to repositories you want Claude to help with',
       url: githubStatus.appCreated ? `${workerUrl}/setup/github/install` : '#',
-      completed: false // We'd need to check actual installations
+      completed: githubStatus.installed
     }
   ];
 
