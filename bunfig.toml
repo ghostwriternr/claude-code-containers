@@ -1,6 +1,4 @@
 [install]
-# Configure workspaces to include claude-code-action
-workspace = true
 # Use exact versions for better reproducibility
 exact = true
 

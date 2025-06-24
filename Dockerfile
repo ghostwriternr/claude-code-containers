@@ -15,7 +15,7 @@ RUN apt-get update && \
         unzip && \
     rm -rf /var/lib/apt/lists/*
 
-# Install Bun (matching claude-code-action development stack)
+# Install Bun
 RUN curl -fsSL https://bun.sh/install | bash
 ENV PATH="/root/.bun/bin:$PATH"
 
@@ -28,6 +28,11 @@ WORKDIR /app
 # Copy and setup claude-code-action submodule first
 COPY lib/claude-code-action/ ./claude-action/
 WORKDIR /app/claude-action
+RUN bun install
+
+# Copy and setup claude-code-base-action submodule
+COPY lib/claude-code-base-action/ ./claude-base-action/
+WORKDIR /app/claude-base-action
 RUN bun install
 
 # Switch back to main app directory

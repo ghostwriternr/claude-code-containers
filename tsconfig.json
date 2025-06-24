@@ -25,6 +25,7 @@
 		"paths": {
 			"@claude-action": ["./src/lib/claude-action/index"],
 			"@claude-action/*": ["./lib/claude-code-action/src/*"],
+			"@claude-base-action/*": ["./lib/claude-code-base-action/src/*"],
 			"@lib/*": ["./src/lib/*"],
 			"@adapters": ["./src/lib/adapters/index"],
 			"@adapters/*": ["./src/lib/adapters/*"]

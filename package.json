@@ -4,7 +4,9 @@
 	"version": "0.0.3",
 	"private": true,
 	"workspaces": [
-		"lib/claude-code-action"
+		"lib/claude-code-action",
+		"lib/claude-code-base-action",
+		"container_src"
 	],
 	"scripts": {
 		"deploy": "wrangler deploy",
