@@ -62,122 +62,144 @@ export async function handleRoot(
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
           margin: 0; 
           padding: 40px; 
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
+          background: #f8fafc;
+          color: #1e293b;
           min-height: 100vh;
+          line-height: 1.6;
         }
         .container { 
           max-width: 800px; 
           margin: 0 auto; 
-          background: rgba(255, 255, 255, 0.1);
-          border-radius: 20px;
-          padding: 40px;
-          backdrop-filter: blur(10px);
-          box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+          background: white;
+          border-radius: 16px;
+          padding: 48px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+          border: 1px solid #e2e8f0;
         }
         h1 { 
-          font-size: 3em; 
-          margin: 0 0 20px 0; 
+          font-size: 2.5em; 
+          margin: 0 0 16px 0; 
           text-align: center;
-          background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
+          color: #0f172a;
+          font-weight: 700;
         }
         .subtitle { 
           text-align: center; 
-          font-size: 1.2em; 
-          margin-bottom: 40px; 
-          opacity: 0.9;
+          font-size: 1.1em; 
+          margin-bottom: 48px; 
+          color: #64748b;
         }
         .button { 
-          background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+          background: #3b82f6;
           color: white; 
-          padding: 15px 30px; 
+          padding: 12px 24px; 
           text-decoration: none; 
-          border-radius: 50px; 
+          border-radius: 8px; 
           display: inline-block; 
-          margin: 10px; 
-          transition: transform 0.2s, box-shadow 0.2s;
-          font-weight: 600;
+          margin: 8px; 
+          transition: all 0.2s;
+          font-weight: 500;
           border: none;
           cursor: pointer;
+          font-size: 14px;
         }
         .button:hover { 
-          transform: translateY(-2px);
-          box-shadow: 0 10px 25px rgba(255, 107, 107, 0.3);
+          background: #2563eb;
+          transform: translateY(-1px);
         }
         .button.secondary {
-          background: rgba(255, 255, 255, 0.2);
-          backdrop-filter: blur(10px);
+          background: #f1f5f9;
+          color: #475569;
+          border: 1px solid #e2e8f0;
+        }
+        .button.secondary:hover {
+          background: #e2e8f0;
+          color: #334155;
         }
         .setup-section { 
-          margin: 40px 0; 
-          padding: 30px;
-          background: rgba(255, 255, 255, 0.1);
-          border-radius: 15px;
-          border: 1px solid rgba(255, 255, 255, 0.2);
+          margin: 48px 0; 
+          padding: 32px;
+          background: #f8fafc;
+          border-radius: 12px;
+          border: 1px solid #e2e8f0;
         }
         .step { 
-          margin: 20px 0; 
-          padding: 20px;
-          background: rgba(255, 255, 255, 0.05);
-          border-radius: 10px;
-          border-left: 4px solid #4ecdc4;
+          margin: 24px 0; 
+          padding: 24px;
+          background: white;
+          border-radius: 8px;
+          border: 1px solid #e2e8f0;
+          border-left: 4px solid #3b82f6;
+        }
+        .step h3 {
+          margin: 0 0 8px 0;
+          color: #0f172a;
+          font-size: 1.1em;
+        }
+        .step p {
+          margin: 0 0 16px 0;
+          color: #64748b;
         }
         .feature-grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-          gap: 20px;
-          margin: 30px 0;
+          gap: 24px;
+          margin: 40px 0;
         }
         .feature {
-          background: rgba(255, 255, 255, 0.1);
-          padding: 25px;
-          border-radius: 15px;
+          background: white;
+          padding: 32px 24px;
+          border-radius: 12px;
           text-align: center;
-          border: 1px solid rgba(255, 255, 255, 0.2);
+          border: 1px solid #e2e8f0;
+          transition: all 0.2s;
+        }
+        .feature:hover {
+          border-color: #cbd5e1;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
         .feature-icon {
           font-size: 2.5em;
-          margin-bottom: 15px;
+          margin-bottom: 16px;
+        }
+        .feature h3 {
+          margin: 0 0 8px 0;
+          color: #0f172a;
+          font-size: 1.1em;
+        }
+        .feature p {
+          margin: 0;
+          color: #64748b;
+          font-size: 0.9em;
         }
         .status-indicator {
           display: inline-block;
-          width: 10px;
-          height: 10px;
+          width: 8px;
+          height: 8px;
           border-radius: 50%;
-          background: #4ecdc4;
+          background: #10b981;
           margin-right: 8px;
         }
         code {
-          background: rgba(0, 0, 0, 0.3);
-          padding: 4px 8px;
-          border-radius: 6px;
-          font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
-        }
-        .endpoint-list {
-          background: rgba(0, 0, 0, 0.2);
-          padding: 20px;
-          border-radius: 10px;
-          margin: 20px 0;
-        }
-        .endpoint {
-          margin: 8px 0;
-          font-family: monospace;
-        }
-        .method {
-          background: #4ecdc4;
-          color: white;
-          padding: 2px 8px;
+          background: #f1f5f9;
+          color: #475569;
+          padding: 4px 6px;
           border-radius: 4px;
-          font-size: 0.8em;
-          margin-right: 10px;
+          font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+          font-size: 0.85em;
+        }
+        .setup-section h2 {
+          margin: 0 0 24px 0;
+          color: #0f172a;
+          display: flex;
+          align-items: center;
         }
         @media (max-width: 600px) {
           body { padding: 20px; }
+          .container { padding: 24px; }
           h1 { font-size: 2em; }
-          .button { display: block; text-align: center; margin: 10px 0; }
+          .button { display: block; text-align: center; margin: 8px 0; }
+          .feature-grid { grid-template-columns: 1fr; }
         }
       </style>
     </head>
@@ -220,28 +242,6 @@ export async function handleRoot(
             <h3>3. Check Status</h3>
             <p>Verify your configuration and get next steps</p>
             <a href="${workerUrl}/api/v1/status" class="button secondary">View Status</a>
-          </div>
-        </div>
-
-        <div class="setup-section">
-          <h2>🔗 API Endpoints</h2>
-          <div class="endpoint-list">
-            <div class="endpoint">
-              <span class="method">GET</span>
-              <code>/api/v1/status</code> - System status and configuration
-            </div>
-            <div class="endpoint">
-              <span class="method">POST</span>
-              <code>/setup/claude</code> - Configure Anthropic API key
-            </div>
-            <div class="endpoint">
-              <span class="method">GET</span>
-              <code>/setup/github/create</code> - Create GitHub App
-            </div>
-            <div class="endpoint">
-              <span class="method">POST</span>
-              <code>/webhooks/github</code> - GitHub webhook processor
-            </div>
           </div>
         </div>
 

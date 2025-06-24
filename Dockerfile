@@ -15,9 +15,8 @@ RUN apt-get update && \
         unzip && \
     rm -rf /var/lib/apt/lists/*
 
-# Install Bun
-RUN curl -fsSL https://bun.sh/install | bash
-ENV PATH="/root/.bun/bin:$PATH"
+# Install Bun using npm as fallback
+RUN npm install -g bun
 
 # Install Claude Code CLI globally
 RUN npm install -g @anthropic-ai/claude-code
@@ -29,6 +28,9 @@ WORKDIR /app
 COPY lib/claude-code-action/ ./claude-action/
 WORKDIR /app/claude-action
 RUN bun install
+
+# Switch back to main app directory
+WORKDIR /app
 
 # Copy and setup claude-code-base-action submodule
 COPY lib/claude-code-base-action/ ./claude-base-action/
