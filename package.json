@@ -3,11 +3,19 @@
 	"description": "Build a Container-enabled Worker",
 	"version": "0.0.3",
 	"private": true,
+	"workspaces": [
+		"lib/claude-code-action",
+		"lib/claude-code-base-action",
+		"container_src"
+	],
 	"scripts": {
 		"deploy": "wrangler deploy",
 		"dev": "wrangler dev",
 		"start": "wrangler dev",
-		"cf-typegen": "wrangler types"
+		"cf-typegen": "wrangler types",
+		"build:all": "bun run --filter='*' build",
+		"test:all": "bun run --filter='*' test",
+		"typecheck:all": "bun run --filter='*' typecheck"
 	},
 	"devDependencies": {
 		"@types/node": "^24.0.3",

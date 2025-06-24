@@ -6,9 +6,10 @@
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc",
-    "start": "npm run build && node dist/main.js",
-    "dev": "npm run build && node dist/main.js",
-    "watch": "tsc --watch"
+    "start": "bun run build && bun dist/main.js",
+    "dev": "bun run build && bun dist/main.js",
+    "watch": "tsc --watch",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@anthropic-ai/claude-code": "^1.0.27",
