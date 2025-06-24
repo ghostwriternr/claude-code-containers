@@ -7,14 +7,49 @@ import { GitHubAPI } from "../../github_client";
 import { logWithContext } from "../../log";
 import { type ContainerExecutionRequest } from "../api/containers";
 
+// Type definitions
+interface GitHubIssue {
+  id: number;
+  number: number;
+  title: string;
+  body: string;
+  state: string;
+  user: {
+    login: string;
+    id: number;
+  };
+  labels?: Array<{
+    id: number;
+    name: string;
+    color: string;
+  }>;
+}
+
+interface GitHubRepository {
+  id: number;
+  name: string;
+  full_name: string;
+  private: boolean;
+  clone_url: string;
+  owner: {
+    login: string;
+    type: string;
+    id: number;
+  };
+}
+
+interface GitHubAppConfigDO {
+  fetch(request: Request): Promise<Response>;
+}
+
 /**
  * Route GitHub issue to MCP-enabled Claude Code container
  */
 async function routeToMcpContainer(
-  issue: any, 
-  repository: any, 
-  env: any, 
-  configDO: any
+  issue: GitHubIssue, 
+  repository: GitHubRepository, 
+  env: Env, 
+  configDO: GitHubAppConfigDO
 ): Promise<void> {
   const contextId = `issue-${repository.full_name}-${issue.number}-${Date.now()}`;
 
@@ -53,7 +88,7 @@ async function routeToMcpContainer(
         issueNumber: issue.number.toString(),
         title: issue.title,
         description: issue.body || '',
-        labels: issue.labels?.map((label: any) => label.name) || [],
+        labels: issue.labels?.map((label) => label.name) || [],
         repositoryUrl: repository.html_url,
         repositoryName: repository.full_name,
         author: issue.user.login
@@ -145,7 +180,11 @@ async function routeToMcpContainer(
 /**
  * Handle issues events with MCP integration
  */
-export async function handleIssuesEvent(data: any, env: any, configDO: any): Promise<Response> {
+export async function handleIssuesEvent(
+  data: { issue: GitHubIssue; repository: GitHubRepository }, 
+  env: Env, 
+  configDO: GitHubAppConfigDO
+): Promise<Response> {
   const action = data.action;
   const issue = data.issue;
   const repository = data.repository;
@@ -156,7 +195,7 @@ export async function handleIssuesEvent(data: any, env: any, configDO: any): Pro
     issueTitle: issue.title,
     repository: repository.full_name,
     author: issue.user?.login,
-    labels: issue.labels?.map((label: any) => label.name) || []
+    labels: issue.labels?.map((label) => label.name) || []
   });
 
   // Create GitHub API client for authenticated requests

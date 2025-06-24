@@ -8,6 +8,32 @@ import { jsonResponse, errorResponse } from '../../router';
 import { handleIssuesEvent } from '../github_webhooks/issue';
 import { handleInstallationEvent, handleInstallationRepositoriesEvent } from '../github_webhooks';
 
+// Type definitions for webhook payloads
+interface GitHubWebhookPayload {
+  action?: string;
+  installation?: {
+    id: number;
+    app_id: number;
+  };
+  repository?: {
+    id: number;
+    name: string;
+    full_name: string;
+  };
+  issue?: {
+    id: number;
+    number: number;
+    title: string;
+    body: string;
+  };
+  zen?: string; // For ping webhooks
+}
+
+// Type for Durable Object instance
+interface GitHubAppConfigDO {
+  fetch(request: Request): Promise<Response>;
+}
+
 /**
  * Main GitHub webhook processor
  * POST /webhooks/github
@@ -49,9 +75,9 @@ export async function handleGitHubWebhook(
     }
 
     // Parse the payload
-    let webhookData: any;
+    let webhookData: GitHubWebhookPayload;
     try {
-      webhookData = JSON.parse(payload);
+      webhookData = JSON.parse(payload) as GitHubWebhookPayload;
       logWithContext('WEBHOOK', 'Webhook payload parsed', {
         hasInstallation: !!webhookData.installation,
         hasRepository: !!webhookData.repository,
@@ -99,7 +125,7 @@ export async function handleGitHubWebhook(
     await logWebhookDelivery(configDO, event, delivery);
 
     // Route to appropriate event handler
-    const eventResponse = await routeWebhookEvent(event, request, env, configDO);
+    const eventResponse = await routeWebhookEvent(event, webhookData, env, configDO);
 
     const processingTime = Date.now() - startTime;
     logWithContext('WEBHOOK', 'Webhook processing completed', {
@@ -127,24 +153,21 @@ export async function handleGitHubWebhook(
  */
 async function routeWebhookEvent(
   event: string,
-  request: Request,
+  webhookData: GitHubWebhookPayload,
   env: Env,
-  configDO: any
+  configDO: GitHubAppConfigDO
 ): Promise<Response> {
   logWithContext('WEBHOOK_ROUTER', 'Routing webhook event', { event });
 
   switch (event) {
     case 'installation':
-      const installationData = await request.json();
-      return handleInstallationEvent(installationData, configDO);
+      return handleInstallationEvent(webhookData, configDO);
 
     case 'installation_repositories':
-      const repoData = await request.json();
-      return handleInstallationRepositoriesEvent(repoData, configDO);
+      return handleInstallationRepositoriesEvent(webhookData, configDO);
 
     case 'issues':
-      const issuesData = await request.json();
-      return handleIssuesEvent(issuesData, env, configDO);
+      return handleIssuesEvent(webhookData, env, configDO);
 
     case 'issue_comment':
       // TODO: Implement issue comment handling with adapters
@@ -177,10 +200,10 @@ async function routeWebhookEvent(
  * Get app configuration from webhook data
  */
 async function getAppConfiguration(
-  webhookData: any,
+  webhookData: GitHubWebhookPayload,
   request: Request,
   env: Env
-): Promise<{ configDO: any | null; appId: string | null }> {
+): Promise<{ configDO: GitHubAppConfigDO | null; appId: string | null }> {
   let appId: string | null = null;
 
   // Try to determine app ID from various sources
@@ -201,7 +224,8 @@ async function getAppConfiguration(
     return { configDO: null, appId: null };
   }
 
-  const configId = env.GITHUB_APP_CONFIG.idFromName(appId);
+  // Use consistent config naming - we support one GitHub app per deployment
+  const configId = env.GITHUB_APP_CONFIG.idFromName('claude-config');
   const configDO = env.GITHUB_APP_CONFIG.get(configId);
 
   return { configDO, appId };
@@ -213,7 +237,7 @@ async function getAppConfiguration(
 async function verifyWebhookSignature(
   payload: string,
   signature: string,
-  configDO: any
+  configDO: GitHubAppConfigDO
 ): Promise<boolean> {
   try {
     if (!signature.startsWith('sha256=')) {
@@ -263,7 +287,7 @@ async function verifyWebhookSignature(
  * Log webhook delivery for analytics
  */
 async function logWebhookDelivery(
-  configDO: any,
+  configDO: GitHubAppConfigDO,
   event: string,
   delivery: string
 ): Promise<void> {

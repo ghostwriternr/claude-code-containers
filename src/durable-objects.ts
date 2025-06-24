@@ -27,6 +27,8 @@ export class GitHubAppConfigDO {
       CREATE TABLE IF NOT EXISTS github_app_config (
         id INTEGER PRIMARY KEY,
         app_id TEXT NOT NULL,
+        app_name TEXT NOT NULL,
+        slug TEXT NOT NULL,
         private_key TEXT NOT NULL,
         webhook_secret TEXT NOT NULL,
         installation_id TEXT,
@@ -132,7 +134,15 @@ export class GitHubAppConfigDO {
     }
 
     if (url.pathname === '/update-installation' && request.method === 'POST') {
-      const installationData = await request.json() as { installationId: string; repositories: Repository[]; owner: any };
+      const installationData = await request.json() as {
+        installationId: string;
+        repositories: Repository[];
+        owner: {
+          login: string;
+          type: string;
+          id: number;
+        };
+      };
 
       logWithContext('DURABLE_OBJECT', 'Updating installation', {
         installationId: installationData.installationId,
@@ -206,12 +216,14 @@ export class GitHubAppConfigDO {
 
   private async storeAppConfig(config: GitHubAppConfig): Promise<void> {
     const now = new Date().toISOString();
-    
+
     this.storage.sql.exec(
-      `INSERT OR REPLACE INTO github_app_config 
-       (id, app_id, private_key, webhook_secret, installation_id, owner_login, owner_type, owner_id, permissions, events, repositories, created_at, updated_at)
-       VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR REPLACE INTO github_app_config
+       (id, app_id, app_name, slug, private_key, webhook_secret, installation_id, owner_login, owner_type, owner_id, permissions, events, repositories, created_at, updated_at)
+       VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       config.appId,
+      config.appName,
+      config.slug,
       config.privateKey,
       config.webhookSecret,
       config.installationId,
@@ -227,14 +239,17 @@ export class GitHubAppConfigDO {
   }
 
   private async getAppConfig(): Promise<GitHubAppConfig | null> {
-    const result = this.storage.sql.exec(
+    const cursor = this.storage.sql.exec(
       `SELECT * FROM github_app_config WHERE id = 1`
-    ).one();
+    );
+    const result = cursor.toArray()[0];
 
     if (!result) return null;
 
     return {
       appId: result.app_id as string,
+      appName: result.app_name as string,
+      slug: result.slug as string,
       privateKey: result.private_key as string,
       webhookSecret: result.webhook_secret as string,
       installationId: result.installation_id as string,
@@ -267,7 +282,7 @@ export class GitHubAppConfigDO {
 
   private async logWebhook(_event: string): Promise<void> {
     const now = new Date().toISOString();
-    
+
     this.storage.sql.exec(
       `UPDATE github_app_config SET last_webhook_at = ?, webhook_count = webhook_count + 1, updated_at = ? WHERE id = 1`,
       now, now
@@ -276,7 +291,7 @@ export class GitHubAppConfigDO {
 
   private async updateInstallation(installationId: string, repositories: Repository[]): Promise<void> {
     const now = new Date().toISOString();
-    
+
     this.storage.sql.exec(
       `UPDATE github_app_config SET installation_id = ?, repositories = ?, updated_at = ? WHERE id = 1`,
       installationId,
@@ -303,14 +318,15 @@ export class GitHubAppConfigDO {
 
   private async getInstallationToken(): Promise<string | null> {
     // Check for cached token first
-    const cachedResult = this.storage.sql.exec(
+    const cursor = this.storage.sql.exec(
       `SELECT token, expires_at FROM installation_tokens ORDER BY created_at DESC LIMIT 1`
-    ).one();
+    );
+    const cachedResult = cursor.toArray()[0];
 
     if (cachedResult) {
       const expiresAt = new Date(cachedResult.expires_at as string);
       const now = new Date();
-      
+
       // If token expires in more than 5 minutes, use cached token
       if (expiresAt.getTime() - now.getTime() > 5 * 60 * 1000) {
         return cachedResult.token as string;
@@ -352,9 +368,9 @@ export class GitHubAppConfigDO {
 
   private async storeClaudeApiKey(apiKey: string, setupAt: string): Promise<void> {
     const now = new Date().toISOString();
-    
+
     this.storage.sql.exec(
-      `INSERT OR REPLACE INTO claude_config 
+      `INSERT OR REPLACE INTO claude_config
        (id, anthropic_api_key, claude_setup_at, created_at, updated_at)
        VALUES (1, ?, ?, ?, ?)`,
       apiKey, setupAt, now, now
@@ -362,9 +378,10 @@ export class GitHubAppConfigDO {
   }
 
   private async getDecryptedClaudeApiKey(): Promise<string | null> {
-    const result = this.storage.sql.exec(
+    const cursor = this.storage.sql.exec(
       `SELECT anthropic_api_key FROM claude_config WHERE id = 1`
-    ).one();
+    );
+    const result = cursor.toArray()[0];
 
     if (!result) return null;
 
@@ -488,6 +505,8 @@ export class MyContainer extends Container {
 // Type definitions
 interface GitHubAppConfig {
   appId: string;
+  appName: string;
+  slug: string;
   privateKey: string;
   webhookSecret: string;
   installationId: string;

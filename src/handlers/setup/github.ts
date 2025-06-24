@@ -5,6 +5,43 @@
 
 import { logWithContext } from '../../log';
 import { jsonResponse, errorResponse } from '../../router';
+import { encrypt } from '../../crypto';
+
+// Type definitions
+interface GitHubAppConfig {
+  appId: string;
+  appName: string;
+  slug: string;
+  privateKey: string;
+  webhookSecret: string;
+  installationId: string;
+  owner: {
+    login: string;
+    type: string;
+    id: number;
+  };
+  permissions: Record<string, string>;
+  events: string[];
+  repositories: Repository[];
+}
+
+interface Repository {
+  id: number;
+  name: string;
+  full_name: string;
+  private: boolean;
+  clone_url: string;
+}
+
+interface GitHubAppManifestResponse {
+  id: number;
+  slug: string;
+  name: string;
+  client_id: string;
+  client_secret: string;
+  webhook_secret: string;
+  pem: string;
+}
 
 /**
  * Initiate GitHub App creation
@@ -29,6 +66,7 @@ export async function handleGitHubAppCreation(
       name: `Claude Code Assistant (${generateUniqueId()})`,
       description: 'AI-powered code assistant that automatically processes GitHub issues and creates pull requests',
       url: 'https://claude.ai/code',
+      setup_url: `${workerUrl}/`,
       hook_attributes: {
         url: `${workerUrl}/webhooks/github`,
         active: true
@@ -70,35 +108,173 @@ export async function handleGitHubAppCreation(
         }
       });
     } else {
-      // HTML redirect for browser
+      // HTML form for browser - GitHub requires POST with manifest in form data
+      const manifestJson = JSON.stringify(manifest);
+      
       return new Response(`
         <!DOCTYPE html>
         <html>
         <head>
-          <title>Creating GitHub App...</title>
+          <title>GitHub App Setup - Claude Code Assistant</title>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
           <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 40px; text-align: center; }
-            .container { max-width: 600px; margin: 0 auto; }
-            .button { background: #0969da; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 20px 0; }
-            .button:hover { background: #0860ca; }
-            pre { background: #f6f8fa; padding: 16px; border-radius: 6px; text-align: left; overflow-x: auto; }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              max-width: 800px;
+              margin: 40px auto;
+              padding: 20px;
+              line-height: 1.6;
+              color: #333;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 40px;
+            }
+            .webhook-info {
+              background: #f5f5f5;
+              padding: 20px;
+              border-radius: 8px;
+              margin: 20px 0;
+            }
+            .webhook-url {
+              font-family: monospace;
+              background: #fff;
+              padding: 10px;
+              border: 1px solid #ddd;
+              border-radius: 4px;
+              word-break: break-all;
+            }
+            .create-app-btn {
+              background: #238636;
+              color: white;
+              padding: 12px 24px;
+              border: none;
+              border-radius: 6px;
+              font-weight: 600;
+              margin: 20px 0;
+              cursor: pointer;
+              font-size: 14px;
+              width: 100%;
+              max-width: 300px;
+            }
+            .create-app-btn:hover {
+              background: #2ea043;
+            }
+            .steps {
+              margin: 30px 0;
+            }
+            .step {
+              margin: 15px 0;
+              padding-left: 30px;
+              position: relative;
+            }
+            .step-number {
+              position: absolute;
+              left: 0;
+              top: 0;
+              background: #0969da;
+              color: white;
+              width: 20px;
+              height: 20px;
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 12px;
+              font-weight: bold;
+            }
+            .form-container {
+              text-align: center;
+              margin: 40px 0;
+            }
+            details {
+              margin: 20px 0;
+              text-align: left;
+            }
+            pre {
+              background: #f8f8f8;
+              padding: 15px;
+              border-radius: 4px;
+              overflow-x: auto;
+              font-size: 12px;
+            }
           </style>
         </head>
         <body>
-          <div class="container">
-            <h1>🤖 Claude Code Assistant Setup</h1>
-            <p>Step 2: Create your GitHub App</p>
-            <p>Click the button below to create a GitHub App for your Claude Code Assistant.</p>
-            <a href="${githubUrl}" class="button">Create GitHub App</a>
-            <p><small>This will redirect you to GitHub to create and configure your app automatically.</small></p>
+          <div class="header">
+            <h1>GitHub App Setup</h1>
+            <p>Configure GitHub webhook integration for Claude Code Assistant</p>
+          </div>
+
+          <div class="webhook-info">
+            <h3>Your Webhook URL</h3>
+            <div class="webhook-url">${manifest.hook_attributes.url}</div>
+            <p>This URL will receive GitHub webhook events once setup is complete.</p>
+          </div>
+
+          <div class="steps">
+            <h3>Setup Steps</h3>
+
+            <div class="step">
+              <div class="step-number">1</div>
+              <strong>Create GitHub App</strong><br>
+              Click the button below to create a pre-configured GitHub App with all necessary permissions and webhook settings.
+            </div>
+
+            <div class="step">
+              <div class="step-number">2</div>
+              <strong>Choose Account</strong><br>
+              Select which GitHub account or organization should own the app.
+            </div>
+
+            <div class="step">
+              <div class="step-number">3</div>
+              <strong>Install App</strong><br>
+              After creation, you'll be guided to install the app on your repositories.
+            </div>
+          </div>
+
+          <div class="form-container">
+            <form action="https://github.com/settings/apps/new" method="post" id="github-app-form">
+              <input type="hidden" name="manifest" id="manifest" value="">
+              <button type="submit" class="create-app-btn">
+                Create GitHub App
+              </button>
+            </form>
+          </div>
+
+          <details>
+            <summary>App Configuration Details</summary>
+            <pre>
+App Name: ${manifest.name}
+Webhook URL: ${manifest.hook_attributes.url}
+Callback URL: ${manifest.redirect_url}
+
+Permissions:
+- Repository contents: write
+- Repository metadata: read  
+- Pull requests: write
+- Issues: write
+- Repository projects: read
+
+Webhook Events:
+- issues
+- issue_comment
+- pull_request
+- pull_request_review
+            </pre>
             
             <details>
-              <summary>App Configuration</summary>
+              <summary>Full Manifest JSON</summary>
               <pre>${JSON.stringify(manifest, null, 2)}</pre>
             </details>
-          </div>
+          </details>
+
+          <script>
+            // Set the manifest data when the page loads
+            document.getElementById('manifest').value = ${JSON.stringify(manifestJson)};
+          </script>
         </body>
         </html>
       `, {
@@ -156,15 +332,7 @@ export async function handleGitHubCallback(
       return errorResponse('Failed to exchange authorization code', 500);
     }
 
-    const appData = await response.json() as {
-      id: number;
-      slug: string;
-      name: string;
-      client_id: string;
-      client_secret: string;
-      webhook_secret: string;
-      pem: string;
-    };
+    const appData = await response.json() as GitHubAppManifestResponse;
 
     logWithContext('GITHUB_SETUP', 'GitHub App created successfully', {
       appId: appData.id,
@@ -173,21 +341,41 @@ export async function handleGitHubCallback(
     });
 
     // Store app credentials in Durable Objects
-    const configId = env.GITHUB_APP_CONFIG.idFromName(appData.id.toString());
+    const configId = env.GITHUB_APP_CONFIG.idFromName('claude-config');
     const configDO = env.GITHUB_APP_CONFIG.get(configId);
 
-    const storeResponse = await configDO.fetch(new Request('http://internal/store-credentials', {
+    // Encrypt sensitive data before storage
+    const encryptedPrivateKey = await encrypt(appData.pem);
+    const encryptedWebhookSecret = await encrypt(appData.webhook_secret);
+
+    // Format data to match the GitHubAppConfig interface expected by the Durable Object
+    const appConfig = {
+      appId: appData.id.toString(),
+      appName: appData.name,
+      slug: appData.slug,
+      privateKey: encryptedPrivateKey,
+      webhookSecret: encryptedWebhookSecret,
+      installationId: '', // Will be set later during installation
+      owner: {
+        login: '', // Will be set during installation
+        type: '',
+        id: 0
+      },
+      permissions: {
+        issues: 'write',
+        pull_requests: 'write',
+        contents: 'write',
+        metadata: 'read',
+        repository_projects: 'read'
+      },
+      events: ['issues', 'issue_comment', 'pull_request', 'pull_request_review'],
+      repositories: [] // Will be populated during installation
+    };
+
+    const storeResponse = await configDO.fetch(new Request('http://internal/store', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        appId: appData.id.toString(),
-        clientId: appData.client_id,
-        clientSecret: appData.client_secret,
-        webhookSecret: appData.webhook_secret,
-        privateKey: appData.pem,
-        appName: appData.name,
-        slug: appData.slug
-      })
+      body: JSON.stringify(appConfig)
     }));
 
     if (!storeResponse.ok) {
@@ -260,16 +448,16 @@ export async function handleGitHubInstall(
     logWithContext('GITHUB_SETUP', 'Showing installation page', { appId });
 
     // Get app details from Durable Objects
-    const configId = env.GITHUB_APP_CONFIG.idFromName(appId);
+    const configId = env.GITHUB_APP_CONFIG.idFromName('claude-config');
     const configDO = env.GITHUB_APP_CONFIG.get(configId);
     
-    const appResponse = await configDO.fetch(new Request('http://internal/get-app-info'));
+    const appResponse = await configDO.fetch(new Request('http://internal/get'));
     
     if (!appResponse.ok) {
       return errorResponse('App configuration not found', 404);
     }
 
-    const appInfo = await appResponse.json() as { appName: string; slug: string };
+    const appInfo = await appResponse.json() as GitHubAppConfig;
     const workerUrl = getWorkerUrl(request);
 
     return new Response(`
@@ -294,7 +482,7 @@ export async function handleGitHubInstall(
           <p>Your GitHub App <strong>${appInfo.appName}</strong> is ready.</p>
           <p>Install it to your repositories to start using Claude Code Assistant.</p>
           
-          <a href="https://github.com/apps/${appInfo.slug}/installations/new" class="button" target="_blank">
+          <a href="https://github.com/apps/${appInfo.slug}/installations/new" class="button">
             Install GitHub App
           </a>
           

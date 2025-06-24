@@ -1,5 +1,33 @@
 // Handle repository changes (repos added/removed from installation)
-export async function handleInstallationRepositoriesEvent(data: any, configDO: any): Promise<Response> {
+// Type definitions
+interface InstallationRepositoriesEventData {
+  action: 'added' | 'removed';
+  repositories_added?: Array<{
+    id: number;
+    name: string;
+    full_name: string;
+    private: boolean;
+  }>;
+  repositories_removed?: Array<{
+    id: number;
+    name: string;
+    full_name: string;
+    private: boolean;
+  }>;
+  installation: {
+    id: number;
+    app_id: number;
+  };
+}
+
+interface GitHubAppConfigDO {
+  fetch(request: Request): Promise<Response>;
+}
+
+export async function handleInstallationRepositoriesEvent(
+  data: InstallationRepositoriesEventData, 
+  configDO: GitHubAppConfigDO
+): Promise<Response> {
   const action = data.action;
 
   if (action === 'added') {
